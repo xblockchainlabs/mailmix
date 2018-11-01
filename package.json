@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/xblockchainlabs/mailmix#readme",
   "dependencies": {
+    "handlebars": "^4.0.12",
     "lodash": "^4.17.11",
     "mjml": "^4.2.0",
     "xmldom": "^0.1.27"

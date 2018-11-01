@@ -1,44 +1,82 @@
-const { DOMParser } = require('xmldom')
-  , { readdirSync, lstatSync, existsSync, readFileSync } = require('fs')
-  , { join, basename } = require('path')
-  , { BaseTemplate, MessageTemplate } = require('./lib')
+const handlebars = require('handlebars');
 
+const { build, cache } = require('./lib')
+  , { join, basename } = require('path');
 
-var baseTplts = new Map();
+class Mailmix {
 
-const tpltIndex = 'index.mjml';
-
-exports.setBase = (refPath) => {
-  const dirname = process.cwd();
-  const rootDir = join(dirname, refPath);
-  readdirSync(rootDir)
-  .filter((dir) => {
-    const dirPath = join(rootDir, dir)
-    , tpltPath = join(rootDir, dir, tpltIndex);
-
-    return (dir.indexOf('.') !== 0
-        && dir.indexOf('..') !== 0 
-        && lstatSync(dirPath).isDirectory()
-        && existsSync(tpltPath)
-        && lstatSync(tpltPath).isFile());
-  })
-  .forEach((dir) => {
-    const dirPath = join(rootDir, dir)
-    , tpltPath = join(rootDir, dir, tpltIndex)
-    , tpltName = basename(dirPath)
-    , mjml = readFileSync(tpltPath, 'utf8');
-
-    let doc = new DOMParser().parseFromString(mjml);
-    baseTplts.set(tpltName,  BaseTemplate(doc,dirPath));
-  })
-}
-
-exports.template = (baseName, dir) => {
-  return () => {
-    const _base = baseTplts.get(baseName);
-    if(_base === undefined) {
-      throw Error('Missing base template');
-    }
-    return MessageTemplate(_base, dir);
+  constructor() {
+    this._baseDir = null;
+    this._outputDir = null;
+    this._templateDir = null;
+    this._mode = 'live';
+    this._final = false;
   }
+
+  setBaseDir(dir) {
+    const dirname = process.cwd();
+    this._baseDir = join(dirname, dir);
+  }
+
+  setTptlDir(dir) {
+    const dirname = process.cwd();
+    this._templateDir = join(dirname, dir);
+  }
+
+  setOutdir(dir) {
+    const dirname = process.cwd();
+    this._outputDir = join(dirname, dir);
+  }
+
+  setMode(mode) {
+    this._mode = mode;
+  }
+
+  init() {
+    if (this._final) {
+      return
+    }
+    if (this._mode === 'live' && this._baseDir !== null && this._outputDir !== null) {
+      this._loadBase();
+      this._final = true;
+    }
+    else if (this._mode === 'cache' && this._baseDir !== null && this._outputDir !== null && this._templateDir !== null) {
+      this._loadBase();
+      this._loadTemplates();
+      this._saveTemplates();
+      this._final = true;
+    }
+  }
+
+  _loadBase() {
+    build.setBase(this._baseDir);
+  }
+
+  _loadTemplates() {
+    build.setTpltsInst(this._templateDir);
+  }
+  _saveTemplates() {
+    build.savetemplate(this._outputDir);
+  }
+
+  template(basename) {
+    return build.template(basename);
+  }
+
+  render(tpltNmae, data) {
+    if (this._mode === 'live') {
+      build.setTpltsInst(this._templateDir);
+      const tplt = build.gettemplate(tpltNmae);
+      const tpltbuild = tplt.build();
+      const compiledTplt = handlebars.compile(tpltbuild);
+      return compiledTplt(data);
+    } else {
+      const tplt = cache.readCache(this._outputDir, tpltNmae);
+      const compiledTplt = handlebars.compile(tplt.toString());
+      return compiledTplt(data);
+    }
+  }
+
 }
+
+module.exports =  new Mailmix();
