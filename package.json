@@ -1,6 +1,6 @@
 {
   "name": "mailmix",
-  "version": "1.0.0",
+  "version": "0.1.1",
   "description": "A util Library to generate mjml templates using predifined wirframes",
   "main": "index.js",
   "scripts": {
